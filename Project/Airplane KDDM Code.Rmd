@@ -1,0 +1,343 @@
+---
+title: "Airplane Dataset Analysis"
+author: "Group 1 (Harsh Agrawal, Amit Ramjee, Shweta Mishra, Abishek Amberkar)"
+date: "12/2/2021"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+# Exploratory Analysis - Correlation Heatmap
+### Load Training & Test data files, replace blanks with median
+[Kaggle Airline Passenger Dataset](https://www.kaggle.com/teejmahal20/airline-passenger-satisfaction)
+
+```{r}
+rm(list=ls())
+air_training <- read.csv("C:/Users/amitr/Downloads/airplane_train.csv") # Load dataset
+air_training$Arrival.Delay.in.Minutes[is.na(air_training$Arrival.Delay.in.Minutes)]<-median(air_training$Arrival.Delay.in.Minutes, na.rm = TRUE)
+
+air_test<- read.csv("C:/Users/amitr/Downloads/airplane_test.csv") # Load dataset
+air_test$Arrival.Delay.in.Minutes[is.na(air_test$Arrival.Delay.in.Minutes)]<-median(air_test$Arrival.Delay.in.Minutes, na.rm = TRUE)
+```
+
+### Pre-processing, convert categorical columns to numeric for training data
+
+```{r}
+# Update categorical columns to numeric for training data
+air_training<-air_training[,-1:-2] # Eliminate the first 2 columns for row number and identifier
+air_training$Gender<-ifelse(air_training$Gender=="Male", 1, 0)
+air_training$Customer.Type<-ifelse(air_training$Customer.Type=="Loyal Customer", 1, 0)
+air_training$Type.of.Travel<-ifelse(air_training$Type.of.Travel=="Business travel", 1, 0)
+air_training$Business<-ifelse(air_training$Class=="Business", 1, 0)
+air_training$EcoPlus<-ifelse(air_training$Class=="Eco Plus", 1, 0)
+air_training<-air_training[,-5] # remove Class column since created Business and EcoPlus column from that
+air_training$satisfaction<-ifelse(air_training$satisfaction=="satisfied", 1, 0)
+
+```
+
+### Pre-processing, convert categorical columns to numeric for testing data
+
+```{r}
+air_test<-air_test[,-1:-2] # Eliminate the first 2 columns for row number and identifier
+air_test$Gender<-ifelse(air_test$Gender=="Male", 1, 0)
+air_test$Customer.Type<-ifelse(air_test$Customer.Type=="Loyal Customer", 1, 0)
+air_test$Type.of.Travel<-ifelse(air_test$Type.of.Travel=="Business travel", 1, 0)
+air_test$Business<-ifelse(air_test$Class=="Business", 1, 0)
+air_test$EcoPlus<-ifelse(air_test$Class=="Eco Plus", 1, 0)
+air_test<-air_test[,-5] # Eliminates class column
+air_test$satisfaction<-ifelse(air_test$satisfaction=="satisfied", 1, 0)
+```
+
+
+### Plot a Correlation Matrix with all relevant variables
+
+```{r}
+library(ggcorrplot)
+dev.off()
+cor_matrix<-cor(air_training)
+ggcorrplot(cor_matrix, hc.order=TRUE, type = 'lower', lab = TRUE)
+```
+
+***
+# Exploratory Analysis - How Depature Delayal impact Passenger Satisfaction
+
+```{r}
+class(air_training$Departure.Delay.in.Minutes)
+ggplot(air_training, aes(x = as.factor(satisfaction), y = Departure.Delay.in.Minutes)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = quantile(air_training$Departure.Delay.in.Minutes, p = c(0.1, 0.9)))
+```
+
+***
+# Exploratory Analysis - How do different classes impact Satisfaction (Economy vs. Business)? 
+### Prepare data for Satisfied vs. Neutral/Disatisfied in different Classes
+
+```{r}
+rm(list=ls())
+air_training <- read.csv("C:/Users/amitr/Downloads/airplane_train.csv") # Load dataset
+air_training$Arrival.Delay.in.Minutes[is.na(air_training$Arrival.Delay.in.Minutes)]<-median(air_training$Arrival.Delay.in.Minutes, na.rm = TRUE)
+air_training<-air_training[,-2] # Eliminate the first 2 columns for row number and identifier
+air_training$Gender<-ifelse(air_training$Gender=="Male", 1, 0)
+air_training$Customer.Type<-ifelse(air_training$Customer.Type=="Loyal Customer", 1, 0)
+air_training$Type.of.Travel<-ifelse(air_training$Type.of.Travel=="Business travel", 1, 0)
+air_training$Business<-ifelse(air_training$Class=="Business", 1, 0)
+air_training$EcoPlus<-ifelse(air_training$Class=="Eco Plus", 1, 0)
+air_training$satisfaction<-ifelse(air_training$satisfaction=="satisfied", 1, 0)
+```
+
+## Plot passengers in Different Classes (economy, plus, business)
+#### Where 1 = satisfied and 0 = Neutral or disatisfied
+
+```{r}
+class(air_training$Class)
+ggplot(air_training, aes(x = as.factor(satisfaction), fill = Class)) + 
+  geom_bar(position = 'fill')
+```
+
+***
+## Box Plot of Simliar Passenger variables to compare ratings
+
+```{r}
+library(ggpubr)
+Food_and_drink<-ggplot(air_training, aes(x = as.factor(satisfaction), y = Food.and.drink)) + 
+  geom_boxplot()
+
+seat_comfort<-ggplot(air_training, aes(x = as.factor(satisfaction), y = Seat.comfort)) + 
+  geom_boxplot()
+
+
+Legroom<-ggplot(air_training, aes(x = as.factor(satisfaction), y = Leg.room.service)) + 
+  geom_boxplot()
+
+Inflight_enter<-ggplot(air_training, aes(x = as.factor(satisfaction), y = Inflight.entertainment)) + 
+  geom_boxplot()
+
+ggarrange(Food_and_drink, seat_comfort, Legroom, Inflight_enter, ncol = 2, nrow = 2)
+```
+
+--
+
+***
+
+# TEST 1: Naives Bayes
+
+#### Clear environment - Load training, test data.  Fill blanks with median
+
+```{r}
+rm(list=ls())
+air_training<- read.csv('C:/Users/amitr/Downloads/airplane_train.csv') # Load Training
+air_training$Arrival.Delay.in.Minutes[is.na(air_training$Arrival.Delay.in.Minutes)]<-median(air_training$Arrival.Delay.in.Minutes, na.rm = TRUE)
+
+
+air_test<- read.csv("C:/Users/amitr/Downloads/airplane_test.csv") # Load Test
+air_test$Arrival.Delay.in.Minutes[is.na(air_test$Arrival.Delay.in.Minutes)]<-median(air_test$Arrival.Delay.in.Minutes, na.rm = TRUE)
+
+```
+
+
+#### Pre-processing, convert categorical columns to numeric for training data
+##### Eliminate columns from dataset based on correlation matrix which are Row,
+##### ID, Gender, Gate Location, Departure Arrival Time, Arrival Delay in Minutes, Departure delay in minutes
+
+```{r}
+air_training<-air_training[,-c(1,2,3,10,12,23,24)] # eliminates columns
+air_training$Customer.Type<-ifelse(air_training$Customer.Type=="Loyal Customer", 1, 0)
+air_training$Type.of.Travel<-ifelse(air_training$Type.of.Travel=="Business travel", 1, 0)
+air_training$Business<-ifelse(air_training$Class=="Business", 1, 0)
+air_training$EcoPlus<-ifelse(air_training$Class=="Eco Plus", 1, 0)
+air_training<-air_training[,-4] # Eliminates class column since added Business & EcoPlus columns
+```
+
+#### Pre-processing, convert categorical columns to numeric for test data
+
+```{r}
+air_test<-air_test[,-c(1,2,3,10,12,23,24)] # eliminates columns
+air_test$Customer.Type<-ifelse(air_test$Customer.Type=="Loyal Customer", 1, 0)
+air_test$Type.of.Travel<-ifelse(air_test$Type.of.Travel=="Business travel", 1, 0)
+air_test$Business<-ifelse(air_test$Class=="Business", 1, 0)
+air_test$EcoPlus<-ifelse(air_test$Class=="Eco Plus", 1, 0)
+air_test<-air_test[,-4] # Eliminates class column
+
+```
+
+#### Factor data
+
+```{r}
+
+air_training$satisfaction <- factor(air_training$satisfaction)
+air_test$satisfaction <- factor(air_test$satisfaction)
+```
+
+#### Build Naive Bayes model and prediction
+
+```{r}
+set.seed(111)
+library(e1071)
+library(caret)
+nB<-naiveBayes(satisfaction~., data = air_training) # this is the model
+categorize<-predict(nB, air_test) # this is the prediction
+```
+
+#### Return Confusion Matrix & Accuracy
+```{r}
+table(nB=categorize, Class=air_test$satisfaction)
+confusionMatrix(table(air_test$satisfaction, categorize)) # return all stats
+```
+
+***
+
+# TEST 2: KNN Method
+### This model and all subsequent models use same preprocessing in test 1
+
+#### create vector to store K-values, and variable for error rates
+
+```{r}
+k_value<-c(1,3,4,5,6,7,9,12,15,20,30,50,65,80,100) # K value to test
+error_Rate<-vector(length = length(k_value))  # store error rate for each model
+```
+
+#### run For-loop to return results (25 mins est)
+
+```{r}
+library(kknn) # use library to run kknn formula
+for(i in 1:length(k_value)){
+  knn_model<-kknn(satisfaction~., air_training, air_test,k = k_value[i],kernel = "rectangular")
+  predicted<-fitted(knn_model)
+  wrong<-sum(predicted!=air_test$satisfaction) # count number of wrong where test data doesn't prediction
+  error_Rate[i]<-wrong/length(predicted)
+}
+
+print(1-error_Rate) # Print Accuracies
+plot(k_value, 1-error_Rate, type = "b", ylab = "Accuracy") # Plot the accuracy
+```
+
+
+***
+
+# TEST 3: CART Method
+
+#### Install Packages for CART
+
+```{r}
+library(rpart)
+library(rpart.plot)  	
+library(rattle)           
+library(RColorBrewer)     
+library(caret)
+```
+
+
+#### Grow the tree
+
+```{r}
+set.seed(111)
+CART_class<-rpart(satisfaction~.,data=air_training) # run CART algorithm on training data
+CART_class
+```
+
+#### Plot the tree
+
+```{r}
+dev.off() # reset graphics device
+par(mar=c(1,1,1,1))
+rpart.plot(CART_class)
+```
+
+#### Score the CART
+
+```{r}
+CART_predict<-predict(CART_class,air_test, type="class") 
+table(Actual=air_test[,"satisfaction"],CART=CART_predict) # reg confusion matrix
+str(CART_predict) # check data structure
+confusionMatrix(table(actual=air_test$satisfaction,prediction=CART_predict))
+```
+
+***
+
+# TEST 4: C5.0 Algorithm
+
+#### Grow the tree
+
+```{r}
+library('C50')
+C50_class<- C5.0(satisfaction~.,data=air_training)
+```
+
+#### Summarize training data - only for viewing purposes
+
+```{r}
+summary(C50_class) # this only uses training not test, don't rely on
+```
+
+#### Score the C5.0 Model
+
+```{r}
+C50_predict<-predict(C50_class, air_test, type="class")
+table(actual=air_test[,17],C50=C50_predict)
+confusionMatrix(table(actual=air_test[,17],C50=C50_predict))
+```
+
+
+***
+
+# TEST 5: Random Forest Algorithm
+
+#### Set seed, load Random Forest Library
+
+```{r}
+set.seed(111)
+library(randomForest)
+```
+
+#### Create the Random Forest fit model, plot
+
+```{r}
+fit <- randomForest(satisfaction~., data=air_training, importance=TRUE, ntree=200)
+importance(fit)
+varImpPlot(fit)
+Prediction <- predict(fit, air_test)
+```
+
+#### Score the Random Forest
+
+```{r}
+confusionMatrix(table(actual=air_test[,17],Prediction)) #Accuracy results
+```
+
+
+***
+
+# TEST 6: SVM - Support Vector Machine
+
+#### Load SVM package and grow tree
+
+```{r}
+library(e1071)
+svm.model <- svm( satisfaction~ ., data = air_training  )
+svm.pred <- predict(svm.model,  air_test )
+```
+
+#### Establish confusion matrix, accuracy
+
+```{r}
+table(actual=air_test[,17],svm.pred )
+confusionMatrix(table(actual=air_test[,17],svm.pred))
+SVM_wrong<- (air_test$satisfaction!=svm.pred)
+rate<-sum(SVM_wrong)/length(SVM_wrong)
+accuracy = 1-rate
+accuracy
+```
+
+#### Print
+
+```{r}
+print(svm.model)
+```
+
